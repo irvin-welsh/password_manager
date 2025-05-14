@@ -99,7 +99,6 @@ def view_all_passwords():
         print(e)
 
 
-
 if __name__ == "__main__":
     user_selection = str(input("Do you want to create new password? [Answer Yes/No] ")).lower()
     if user_selection == "yes":
