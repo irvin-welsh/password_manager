@@ -32,57 +32,71 @@ def decrypt_data(encrypted_data: bytes, password: str) -> str:
     cipher = Fernet(key)
     return cipher.decrypt(ciphertext).decode()
 
-def save_encrypted(data: dict, file_path: str, password: str):
-    """Save data as encrypted JSON."""
-    json_str = json.dumps(data, indent=4)
-    encrypted = encrypt_data(json_str, password)
+def init_storage(master_password: str) -> dict:
+    return {
+        "master_password_hash": sha256(master_password.encode()).hexdigest(),
+        "accounts": {}
+    }
+
+def save_passwords(data: dict, file_path: str, master_password: str):
+    encrypted = encrypt_data(json.dumps(data), master_password)
     with open(file_path, 'wb') as f:
         f.write(encrypted)
 
-def load_encrypted(file_path: str, password: str) -> dict:
-    """Load and decrypt JSON data."""
+def load_passwords(file_path: str, master_password: str) -> dict:
     with open(file_path, 'rb') as f:
         encrypted_data = f.read()
-    decrypted_str = decrypt_data(encrypted_data, password)
-    return json.loads(decrypted_str)
+    
+    decrypted = decrypt_data(encrypted_data, master_password)
+    data = json.loads(decrypted)
+    
+    stored_hash = data.get("master_password_hash")
+    current_hash = sha256(master_password.encode()).hexdigest()
+    if stored_hash != current_hash:
+        raise ValueError("❌ Wrong master password!")
+    
+    return data
 
 def main():
-    master_password = getpass("Enter your master password: ")
-    
     encrypted_file = "passwords.enc"
+    master_password = getpass("Enter your master password: ")
 
+    # Try loading existing data
     try:
-        storage = load_encrypted(encrypted_file, master_password)
+        storage = load_passwords(encrypted_file, master_password)
+        print("🔓 Successfully unlocked!")
     except (FileNotFoundError, json.JSONDecodeError):
-        storage = {}
-    except Exception as e:
-        print("⚠️ Wrong password or corrupted file!")
+        print("🆕 Creating new password storage...")
+        storage = init_storage(master_password)
+    except ValueError as e:
+        print(e)
         return
 
-    account_name = input("Type your account URL: ")
-    length = int(input("How many symbols you want in your password? Enter only digits... "))
+    # Add new account
+    account_name = input("Enter account URL: ")
+    length = int(input("How many symbols do you want to have in your password? Enter only digits... "))
     new_password = generate_password(length)
+    storage["accounts"][account_name] = new_password
 
-    storage = {
-    'account' : {
-        'account name' : account_name,
-        'password' : new_password
-    }
-}
-    #storage[account_name] = new_password
+    # Save changes
+    save_passwords(storage, encrypted_file, master_password)
+    print(f"✅ Password for {account_name} saved!")
 
-    save_encrypted(storage, encrypted_file, master_password)
-    print(f"✅ Password for {account_name} saved securely!")
+    # Show all accounts under this master password
+    print("\n🔐 All accounts under this master password:")
+    for account, password in storage["accounts"].items():
+        print(f"🌐 {account}: {password}")
 
-def view_passwords():
+
+def view_all_passwords():
     master_password = getpass("Enter master password: ")
     try:
-        data = load_encrypted("passwords.enc", master_password)
-        print("🔐 Your passwords:")
-        for account, password in data.items():
+        data = load_passwords("passwords.enc", master_password)
+        print("\n🔐 All accounts under this master password:")
+        for account, password in data["accounts"].items():
             print(f"🌐 {account}: {password}")
-    except Exception:
-        print("❌ Wrong password or corrupted file!")
+    except Exception as e:
+        print(e)
 
 
 
@@ -93,6 +107,6 @@ if __name__ == "__main__":
     elif user_selection == "no":
         show_passwords = str(input("You want to decrypt your existing passwords? [Answer Yes/No] ")).lower()
         if show_passwords == "yes":
-            view_passwords()
+            view_all_passwords()
         else:
             print("If you don't want to add new or view existing passwords, than Good Bye and see you soon!")
