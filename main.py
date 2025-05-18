@@ -109,12 +109,10 @@ def view_all_passwords():
         print(e)
 
 if __name__ == "__main__":
-    user_selection = str(input("Do you want to create new password? [Answer Yes/No] ")).lower()
-    if user_selection == "yes":
+    user_selection = str(input("Do you want to create new password or check your existing passwords? [Answer Create/Check] ")).lower().strip()
+    if user_selection == "create":
         main()
-    elif user_selection == "no":
-        show_passwords = str(input("You want to decrypt your existing passwords? [Answer Yes/No] ")).lower()
-        if show_passwords == "yes":
-            view_all_passwords()
-        else:
-            print("If you don't want to add new or view existing passwords, than Good Bye and see you soon!")
+    elif user_selection == "check":
+        view_all_passwords()
+    else:
+        print("Your answer is neither check nor create, it seems like you don't need anything for now. Good bye!")
